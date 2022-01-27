@@ -1,5 +1,16 @@
 apiVersion: v1
 entries:
+  consul-svc-cleaner:
+  - apiVersion: v2
+    appVersion: 1.7.2
+    created: "2022-01-27T13:35:25.33280998Z"
+    description: A kubecron that cleans up non-hazelcast service discovery endpoints in Consul
+    digest: 503eb61ac554f3faa3f277ad4a9d5006f5100d3fdec889dcc1dde52d50b40e4b
+    name: consul-svc-cleaner
+    type: application
+    urls:
+    - https://github.com/department-of-veterans-affairs/bip-ops-helm/releases/download/consul-svc-cleaner-0.1.1/consul-svc-cleaner-0.1.1.tgz
+    version: 0.1.1
   dump-headers:
   - apiVersion: v2
     appVersion: 1.0.0
