@@ -1,0 +1,337 @@
+{{- if and .Values.forwarder.enabled (not .Values.forwarder.configMap) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "fluentd.fullname" . }}-forwarder-cm
+  labels: {{- include "fluentd.labels" . | nindent 4 }}
+    app.kubernetes.io/component: forwarder
+data:
+  fluentd.conf: |
+{{- if .Values.metrics.enabled -}}
+    # Prometheus Exporter Plugin
+    # input plugin that exports metrics
+    <source>
+      @type prometheus
+      port {{ .Values.metrics.service.port }}
+    </source>
+
+    # input plugin that collects metrics from MonitorAgent
+    <source>
+      @type prometheus_monitor
+      <labels>
+        host ${hostname}
+      </labels>
+    </source>
+
+    # input plugin that collects metrics for output plugin
+    <source>
+      @type prometheus_output_monitor
+      <labels>
+        host ${hostname}
+      </labels>
+    </source>
+
+    # input plugin that collects metrics for in_tail plugin
+    <source>
+      @type prometheus_tail_monitor
+      <labels>
+        host ${hostname}
+      </labels>
+    </source>
+{{- end }}
+    # Ignore fluentd events
+    <label @FLUENT_LOG>
+      <match **>
+        @type null
+      </match>
+    </label>
+
+    # HTTP input for the liveness and readiness probes
+    <source>
+      @type http_healthcheck
+      bind 0.0.0.0
+      port 9880
+    </source>
+
+    # Get the logs from the containers running on the k8s node
+    <source>
+      @id fluentd-containers.log
+      @type tail
+      path /var/log/containers/*.log
+      # exclude Fluentd logs
+      exclude_path ["/var/log/containers/*fluentd*.log", "/var/log/containers/*flux*.log", "/var/log/containers/*git2consul*.log", "/var/log/containers/*helm*.log", "/var/log/containers/*tiller*.log", "/var/log/containers/*kiam*.log"]
+      pos_file /opt/bitnami/fluentd/logs/buffers/fluentd-docker.pos
+      time_format %Y-%m-%dT%H:%M:%S.%NZ
+      tag raw.kubernetes.*
+      format json_in_json
+      read_from_head true
+    </source>
+
+    # Detect Exceptions/Stacktraces
+    <match raw.kubernetes.**>
+      @id raw.kubernetes
+      @type detect_exceptions
+      remove_tag_prefix raw
+      message log
+      stream stream
+      multiline_flush_interval 5
+      max_bytes 500000
+      max_lines 1000
+    </match>
+
+    # Enrich with kubernetes metadata
+    <filter kubernetes.**>
+      @type kubernetes_metadata
+      skip_container_metadata true
+    </filter>
+
+    # Grab platform audit logs
+    <source>
+      @type tail
+      # audit log path of kube-apiserver
+      path /var/log/kubernetes/audit/kube-apiserver-audit.log
+      pos_file /opt/bitnami/fluentd/logs/buffers/kube-apiserver-audit.pos
+      format json
+      time_key time
+      time_format %Y-%m-%d%T%H:%M:%S.%N%z
+      tag platform.audit
+    </source>
+
+    # Enrich and normalize records from kube-apiserver-audit.log
+    <filter platform.audit>
+      @id kube_api_audit_normalize
+      @type record_transformer
+      auto_typecast false
+      enable_ruby true
+      <record>
+        host "#{ENV['K8S_NODE_NAME']}"
+        responseObject ${record["responseObject"].nil? ? "none": record["responseObject"].to_json}
+        requestObject ${record["requestObject"].nil? ? "none": record["requestObject"].to_json}
+        origin kubernetes-api-audit
+      </record>
+    </filter>
+
+    # Grab logs from systemd-journal
+    <source>
+      @id journald-docker
+      @type systemd
+      matches [{ "_SYSTEMD_UNIT": "docker.service" }]
+      <storage>
+        @type local
+        persistent true
+        path /opt/bitnami/fluentd/logs/buffers/journald-docker.pos
+      </storage>
+      read_from_head true
+      tag docker
+    </source>
+
+    <source>
+      @id journald-kubelet
+      @type systemd
+      matches [{ "_SYSTEMD_UNIT": "kubelet.service" }]
+      <storage>
+        @type local
+        persistent true
+        path /opt/bitnami/fluentd/logs/buffers/journald-kubelet.pos
+      </storage>
+      read_from_head true
+      tag docker
+    </source>
+
+    # Break out bip-app and bip-env fields based on namespace
+    <filter kubernetes.**>
+      @type parser
+      key_name $.kubernetes.namespace_name
+      reserve_time
+      reserve_data
+      <parse>
+        @type multi_format
+        <pattern>
+          format regexp
+          expression /^(?<bip-app>[a-zA-Z\-]+?)-(?<bip-env>({{ join "|" .Values.environments }}))$/
+        </pattern>
+        <pattern>
+          format regexp
+          expression /^(?<bip-app>.*)$/
+        </pattern>
+      </parse>
+    </filter>
+
+    # Generate product-line field
+    # First checking for the existence of annotation
+    <filter kubernetes.**>
+      @type record_modifier
+      <record>
+        bip-product-line ${record.dig('kubernetes', 'namespace_labels', 'bip_va_gov/product-line') || 'orphan'}
+      </record>
+    </filter>
+
+    #<filter kubernetes.**>
+    #  @type dict_map
+    #  key_name bip-app
+    #  destination_key_name bip-product-line
+    #  default_value orphan
+    #  dictionary_path /opt/bitnami/fluentd/conf/product-lines.json
+    #</filter>
+
+    # Rename variations to "message" field for consistency
+    <filter kubernetes.**>
+      @type rename_key
+      rename_rule1 ^msg$ message
+      #rename_rule2 ^MESSAGE$ message
+    </filter>
+
+    # Tag the record based on the value of bip-app
+    <match kubernetes.**>
+      @type rewrite_tag_filter
+      <rule>
+        key bip-app
+        pattern ^(.+)$
+        tag $1.${tag}
+      </rule>
+    </match>
+
+    # Drop all consul health check alerts because it's loud and worthless.
+    <filter vault.kubernetes.**>
+      @type grep
+      <exclude>
+        key log
+        pattern /Check .* HTTP request failed/
+      </exclude>
+    </filter>
+
+    # Attempt to parse the log field as json
+    <filter *.kubernetes.**>
+      @type parser
+      key_name log
+      reserve_time
+      reserve_data
+      remove_key_name_field true
+      <parse>
+        @type multi_format
+        <pattern>
+          format json
+          types claimid:integer
+        </pattern>
+        <pattern>
+          format none
+        </pattern>
+      </parse>
+    </filter>
+
+    # Breakout nginx fields for indexing
+    <filter ingress.kubernetes.var.log.containers.**nginx**.log>
+      @type parser
+      key_name log
+      reserve_data true
+      reserve_time true
+      remove_key_name_field true
+      <parse>
+        @type multi_format
+        <pattern>
+          format regexp
+          expression /^(?<remote_addr>[^ ]*) - (?<remote_user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+)(?: +(?<path>[^\"]*?)(?: +\S*)?)?" (?<status>[^ ]*) (?<size>[^ ]*) "(?<referer>[^\"]*)" "(?<agent>[^\"]*)" (?<request_length>[^ ]+) (?<request_time>[^ ]+) \[(?<upstream_name>[^\]]*)\] \[[^\]]*\] (?<upstream_host>[^:]+):(?<upstream_port>[0-9]+) (?<upstream_response_length>[^ ]+) (?<upstream_response_time>[^ ]+) (?<upstream_status>[^ ]*) (?<request_id>[^ ]*)$/
+          time_format %d/%b/%Y:%H:%M:%S %z
+        </pattern>
+        <pattern>
+          format none
+        </pattern>
+      </parse>
+    </filter>
+
+    # Generate a hash id for each record to prevent duplicates in ES.
+    # see https://github.com/uken/fluent_plugin-elasticsearch#generate-hash-id
+    <filter **>
+      @type elasticsearch_genid
+      hash_id_key _hash
+    </filter>
+
+    # For troubleshooting
+    <match **>
+      @type stdout
+    </match>
+
+    {{ if .Values.aggregator.enabled }}
+    # Forward all logs to the aggregators
+    <match **>
+      @type forward
+      {{- $fullName := (include "fluentd.fullname" .) }}
+      {{- $global := . }}
+      {{- $domain := default "cluster.local" .Values.clusterDomain }}
+      {{- $port := .Values.aggregator.port | int }}
+      {{- range $i, $e := until (.Values.aggregator.replicaCount | int) }}
+      <server>
+        {{ printf "host %s-%d.%s-headless.%s.svc.%s" $fullName $i $fullName $global.Release.Namespace $domain }}
+        {{ printf "port %d" $port }}
+        {{- if ne $i 0 }}
+        standby
+        {{- end }}
+      </server>
+      {{- end}}
+
+      <buffer>
+        @type file
+        path /opt/bitnami/fluentd/logs/buffers/logs.buffer
+        # Retry
+        retry_type exponential_backoff
+        retry_forever
+        retry_max_interval 30
+        # Flush
+        flush_mode interval
+        flush_thread_count 2
+        flush_interval 5s
+        overflow_action block
+      </buffer>
+    </match>
+
+    # Drop everything else - only here to catch events when filtering out the above match
+    <match **>
+      @type null
+    </match>
+    {{- else }}
+    ## Send the logs to elasticsearch
+    #<match **.kubernetes.**>
+    #  @type elasticsearch
+    #  # Use generated hash for _id to prevent duplicates in ES
+    #  id_key _hash
+    #  # ES does not like keys with _, so remove from record
+    #  remove_keys _hash
+    #  include_tag_key true
+    #  scheme {{ .Values.elasticsearch.scheme | default "http" }}
+    #  host {{ .Values.elasticsearch.host }}
+    #  port {{ .Values.elasticsearch.port }}
+    #  {{- if .Values.elasticsearch.user }}
+    #  user {{ .Values.elasticsearch.user }}
+    #  {{- end -}}
+    #  {{- if .Values.elasticsearch.password }}
+    #  password {{ .Values.elasticsearch.password }}
+    #  {{- end }}
+    #  logstash_format true
+    #  logstash_prefix ${record['bip-product-line']}-${record['bip-app']}
+    #  request_timeout 45s
+    #  # Reload on errors but not based on number of events
+    #  reload_connections false
+    #  reload_on_failure true
+    #  reconnect_on_error true
+
+    #  <buffer>
+    #    @type file
+    #    path /opt/bitnami/fluentd/logs/buffers/logs.buffer
+    #    # Flush conf
+    #    flush_mode interval
+    #    flush_thread_count 8
+    #    flush_interval 30s
+    #    # Retry conf
+    #    retry_type exponential_backoff
+    #    retry_forever
+    #    retry_max_interval 30
+    #    # Chunk conf
+    #    total_limit_size 1024MB
+    #    chunk_limit_size 25MB
+    #    overflow_action block
+    #  </buffer>
+    #</match>
+    {{- end }}
+
+  product-lines.json: | {{ .Files.Get "files/product-lines.json" | nindent 4 }}
+{{- end -}}

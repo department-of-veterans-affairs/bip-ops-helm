@@ -1,0 +1,148 @@
+{{- if and .Values.aggregator.enabled (not .Values.aggregator.configMap) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "fluentd.fullname" . }}-aggregator-cm
+  labels: {{- include "fluentd.labels" . | nindent 4 }}
+    app.kubernetes.io/component: aggregator
+data:
+  fluentd.conf: |
+    {{- if .Values.metrics.enabled -}}
+    # Prometheus Exporter Plugin
+    # input plugin that exports metrics
+    <source>
+      @type prometheus
+      port {{ .Values.metrics.service.port }}
+    </source>
+
+    # input plugin that collects metrics from MonitorAgent
+    <source>
+      @type prometheus_monitor
+      <labels>
+        host ${hostname}
+      </labels>
+    </source>
+
+    # input plugin that collects metrics for output plugin
+    <source>
+      @type prometheus_output_monitor
+      <labels>
+        host ${hostname}
+      </labels>
+    </source>
+    {{- end }}
+
+    # Ignore fluentd own events
+    <label @FLUENT_LOG>
+      <match **>
+        @type null
+      </match>
+    </label>
+
+    # TCP input to receive logs from
+    {{- if and .Values.aggregator.port }}
+    <source>
+      @type forward
+      bind 0.0.0.0
+      port {{ .Values.aggregator.port }}
+    </source>
+    {{- end }}
+
+    # HTTP input for the liveness and readiness probes
+    <source>
+      @type http_healthcheck
+      bind 0.0.0.0
+      port 9880
+    </source>
+
+    # Expand out message data
+    <filter pension-automation.kubernetes.**.bip-claim-automator-**>
+      @type parser
+      key_name message
+      reserve_time
+      reserve_data
+      <parse>
+        @type multi_format
+        <pattern>
+          format regexp
+          expression /^Award process completed for claim ID [0-9]+ - (?<award_result_text>(?<award_result>Granted|Denied)? ?[^\.]+)/
+        </pattern>
+        # Not sure this one actually works
+    #    <pattern>
+    #      format regexp
+    #      expression /^Rating process completed for claim ID (?<claimid>[0-9]+)$/
+    #    </pattern>
+        <pattern>
+          format regexp
+          expression /^Pension Automation Off-ramp: (?<offramp_status>[A-Za-z0-9_]+) - (?<offramp_reason>.*)$/
+        </pattern>
+    #    <pattern>
+    #      format regexp
+    #      expression /^Classifier Decision for claim ID (?<claimid>[0-9]+): (?<classifier_decision>[A-Z_]+), (?<classifier_match>[A-Z_]+)$/
+    #    </pattern>
+        <pattern>
+          format none
+        </pattern>
+      </parse>
+    </filter>
+
+    ## Generate a hash id for each record to prevent duplicates in ES.
+    # @see https://github.com/uken/fluent_plugin-elasticsearch#generate-hash-id
+    <filter **>
+      @type elasticsearch_genid
+      hash_id_key _hash
+    </filter>
+
+    # Send the logs to elasticsearch
+    #<match **.kubernetes.**>
+    #  @type elasticsearch_dynamic
+    #  # Use generated hash for _id to prevent duplicates in ES
+    #  id_key _hash
+    #  # ES does not like keys with _, so remove from record
+    #  remove_keys _hash
+    #  include_tag_key true
+    #  scheme {{ .Values.elasticsearch.scheme | default "http" }}
+    #  host {{ .Values.elasticsearch.host }}
+    #  port {{ .Values.elasticsearch.port }}
+    #  {{- if .Values.elasticsearch.user }}
+    #  user {{ .Values.elasticsearch.user }}
+    #  {{- end -}}
+    #  {{- if .Values.elasticsearch.password }}
+    #  password {{ .Values.elasticsearch.password }}
+    #  {{- end }}
+    #  logstash_format true
+    #  logstash_prefix tenant-${record['bip-app']}
+    #  request_timeout 45s
+    #  # Reload on errors but not based on number of events
+    #  reload_connections false
+    #  reload_on_failure true
+    #  reconnect_on_error true
+
+    #  <buffer>
+    #    @type file
+    #    path /opt/bitnami/fluentd/logs/buffers/logs.buffer
+    #    # Flush conf
+    #    flush_mode interval
+    #    flush_thread_count 8
+    #    flush_interval 30s
+    #    # Retry conf
+    #    retry_type exponential_backoff
+    #    retry_forever
+    #    retry_max_interval 30
+    #    # Chunk conf
+    #    total_limit_size 1024MB
+    #    chunk_limit_size 25MB
+    #    overflow_action block
+    #  </buffer>
+    #</match>
+
+    # Display everything to stdout (for troubleshooting)
+    <match **>
+      @type stdout
+    </match>
+
+    # Drop everything else
+    <match **>
+      @type null
+    </match>
+{{- end -}}
