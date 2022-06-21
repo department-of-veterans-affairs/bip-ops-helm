@@ -4,7 +4,8 @@ entries:
   - apiVersion: v2
     appVersion: 1.7.2
     created: "2022-01-27T13:35:25.33280998Z"
-    description: A kubecron that cleans up non-hazelcast service discovery endpoints in Consul
+    description: A kubecron that cleans up non-hazelcast service discovery endpoints
+      in Consul
     digest: 503eb61ac554f3faa3f277ad4a9d5006f5100d3fdec889dcc1dde52d50b40e4b
     name: consul-svc-cleaner
     type: application
@@ -43,4 +44,14 @@ entries:
     urls:
     - https://github.com/department-of-veterans-affairs/bip-ops-helm/releases/download/kafka-acl-manager-0.1.0/kafka-acl-manager-0.1.0.tgz
     version: 0.1.0
-generated: "2021-10-15T16:29:54.891026423Z"
+  wlpxy:
+  - apiVersion: v2
+    created: "2022-06-21T14:18:28.912418965Z"
+    description: A chart that will install the VBMS wlpxy server.
+    digest: f6fb62eead2b51dfb1d6d31c1992f98493ea8561993865c2369736f6df796095
+    name: wlpxy
+    type: application
+    urls:
+    - https://github.com/department-of-veterans-affairs/bip-ops-helm/releases/download/wlpxy-2.0.0/wlpxy-2.0.0.tgz
+    version: 2.0.0
+generated: "2022-06-21T14:18:28.912435566Z"
