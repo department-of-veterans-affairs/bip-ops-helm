@@ -544,5 +544,3 @@ elasticsearch:
   scheme: https
   host: vpc-bip-prod-qdmrkmytqbwkpfob7x7aedzdna.us-gov-west-1.es.amazonaws.com
   port: 443
-  user: bip-fluentd
-  password: "fJi%VkvbyhBj#nKQ8Zdu"

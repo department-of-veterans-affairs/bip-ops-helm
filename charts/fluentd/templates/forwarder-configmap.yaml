@@ -290,47 +290,49 @@ data:
     </match>
     {{- else }}
     ## Send the logs to elasticsearch
-    #<match **.kubernetes.**>
-    #  @type elasticsearch
-    #  # Use generated hash for _id to prevent duplicates in ES
-    #  id_key _hash
-    #  # ES does not like keys with _, so remove from record
-    #  remove_keys _hash
-    #  include_tag_key true
-    #  scheme {{ .Values.elasticsearch.scheme | default "http" }}
-    #  host {{ .Values.elasticsearch.host }}
-    #  port {{ .Values.elasticsearch.port }}
-    #  {{- if .Values.elasticsearch.user }}
-    #  user {{ .Values.elasticsearch.user }}
-    #  {{- end -}}
-    #  {{- if .Values.elasticsearch.password }}
-    #  password {{ .Values.elasticsearch.password }}
-    #  {{- end }}
-    #  logstash_format true
-    #  logstash_prefix ${record['bip-product-line']}-${record['bip-app']}
-    #  request_timeout 45s
-    #  # Reload on errors but not based on number of events
-    #  reload_connections false
-    #  reload_on_failure true
-    #  reconnect_on_error true
+    {{- if .Values.elasticsearch.enabled }}
+    <match **.kubernetes.**>
+      @type elasticsearch
+      # Use generated hash for _id to prevent duplicates in ES
+      id_key _hash
+      # ES does not like keys with _, so remove from record
+      remove_keys _hash
+      include_tag_key true
+      scheme {{ .Values.elasticsearch.scheme | default "http" }}
+      host {{ .Values.elasticsearch.host }}
+      port {{ .Values.elasticsearch.port }}
+      {{- if .Values.elasticsearch.user }}
+      user {{ .Values.elasticsearch.user }}
+      {{- end -}}
+      {{- if .Values.elasticsearch.password }}
+      password {{ .Values.elasticsearch.password }}
+      {{- end }}
+      logstash_format true
+      logstash_prefix ${record['bip-product-line']}-${record['bip-app']}
+      request_timeout 45s
+      # Reload on errors but not based on number of events
+      reload_connections false
+      reload_on_failure true
+      reconnect_on_error true
 
-    #  <buffer>
-    #    @type file
-    #    path /opt/bitnami/fluentd/logs/buffers/logs.buffer
-    #    # Flush conf
-    #    flush_mode interval
-    #    flush_thread_count 8
-    #    flush_interval 30s
-    #    # Retry conf
-    #    retry_type exponential_backoff
-    #    retry_forever
-    #    retry_max_interval 30
-    #    # Chunk conf
-    #    total_limit_size 1024MB
-    #    chunk_limit_size 25MB
-    #    overflow_action block
-    #  </buffer>
-    #</match>
+      <buffer>
+        @type file
+        path /opt/bitnami/fluentd/logs/buffers/logs.buffer
+        # Flush conf
+        flush_mode interval
+        flush_thread_count 8
+        flush_interval 30s
+        # Retry conf
+        retry_type exponential_backoff
+        retry_forever
+        retry_max_interval 30
+        # Chunk conf
+        total_limit_size 1024MB
+        chunk_limit_size 25MB
+        overflow_action block
+      </buffer>
+    </match>
+    {{- end -}}
     {{- end }}
 
   product-lines.json: | {{ .Files.Get "files/product-lines.json" | nindent 4 }}

@@ -541,9 +541,10 @@ tls:
 
 ## Custom parameters
 elasticsearch:
-  scheme: http
-  host: alt8-elasticsearch-client.logging.svc
-  port: 9200
+  enabled: true
+  scheme: https
+  host: vpc-alt8-testbed-3bgeznqixqsqk7jude5qkffccy.us-gov-west-1.es.amazonaws.com
+  port: 443
 environments:
   - alt
   - dev
