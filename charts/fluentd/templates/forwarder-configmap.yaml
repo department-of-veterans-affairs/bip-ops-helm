@@ -72,7 +72,6 @@ data:
       @id raw.kubernetes
       @type detect_exceptions
       remove_tag_prefix raw
-      message log
       stream stream
       multiline_flush_interval 5
       max_bytes 500000
@@ -219,25 +218,25 @@ data:
       </parse>
     </filter>
 
-    # Breakout nginx fields for indexing
-    <filter ingress.kubernetes.var.log.containers.**nginx**.log>
-      @type parser
-      key_name log
-      reserve_data true
-      reserve_time true
-      remove_key_name_field true
-      <parse>
-        @type multi_format
-        <pattern>
-          format regexp
-          expression /^(?<remote_addr>[^ ]*) - (?<remote_user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+)(?: +(?<path>[^\"]*?)(?: +\S*)?)?" (?<status>[^ ]*) (?<size>[^ ]*) "(?<referer>[^\"]*)" "(?<agent>[^\"]*)" (?<request_length>[^ ]+) (?<request_time>[^ ]+) \[(?<upstream_name>[^\]]*)\] \[[^\]]*\] (?<upstream_host>[^:]+):(?<upstream_port>[0-9]+) (?<upstream_response_length>[^ ]+) (?<upstream_response_time>[^ ]+) (?<upstream_status>[^ ]*) (?<request_id>[^ ]*)$/
-          time_format %d/%b/%Y:%H:%M:%S %z
-        </pattern>
-        <pattern>
-          format none
-        </pattern>
-      </parse>
-    </filter>
+    ## Breakout nginx fields for indexing
+    #<filter ingress.kubernetes.var.log.containers.**nginx**.log>
+    #  @type parser
+    #  key_name log
+    #  reserve_data true
+    #  reserve_time true
+    #  remove_key_name_field true
+    #  <parse>
+    #    @type multi_format
+    #    <pattern>
+    #      format regexp
+    #      expression /^(?<remote_addr>[^ ]*) - (?<remote_user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+)(?: +(?<path>[^\"]*?)(?: +\S*)?)?" (?<status>[^ ]*) (?<size>[^ ]*) "(?<referer>[^\"]*)" "(?<agent>[^\"]*)" (?<request_length>[^ ]+) (?<request_time>[^ ]+) \[(?<upstream_name>[^\]]*)\] \[[^\]]*\] (?<upstream_host>[^:]+):(?<upstream_port>[0-9]+) (?<upstream_response_length>[^ ]+) (?<upstream_response_time>[^ ]+) (?<upstream_status>[^ ]*) (?<request_id>[^ ]*)$/
+    #      time_format %d/%b/%Y:%H:%M:%S %z
+    #    </pattern>
+    #    <pattern>
+    #      format none
+    #    </pattern>
+    #  </parse>
+    #</filter>
 
     # Generate a hash id for each record to prevent duplicates in ES.
     # see https://github.com/uken/fluent_plugin-elasticsearch#generate-hash-id
@@ -246,10 +245,13 @@ data:
       hash_id_key _hash
     </filter>
 
-    # For troubleshooting
-    <match **>
-      @type stdout
-    </match>
+    # Set the index dynamically based on k8s metadata
+    <filter **>
+      @type record_modifier
+      <record>
+        _target_index tenant-${record['bip-product-line']}-${record['bip-app']}-${Time.at(time).strftime('%F')}
+      </record>
+    </filter>
 
     {{ if .Values.aggregator.enabled }}
     # Forward all logs to the aggregators
@@ -292,11 +294,13 @@ data:
     ## Send the logs to elasticsearch
     {{- if .Values.elasticsearch.enabled }}
     <match **.kubernetes.**>
-      @type elasticsearch
+      @type opensearch
       # Use generated hash for _id to prevent duplicates in ES
       id_key _hash
       # ES does not like keys with _, so remove from record
       remove_keys _hash
+      # Use the generate index name
+      target_index_key _target_index
       include_tag_key true
       scheme {{ .Values.elasticsearch.scheme | default "http" }}
       host {{ .Values.elasticsearch.host }}
@@ -307,8 +311,8 @@ data:
       {{- if .Values.elasticsearch.password }}
       password {{ .Values.elasticsearch.password }}
       {{- end }}
-      logstash_format true
-      logstash_prefix ${record['bip-product-line']}-${record['bip-app']}
+      #logstash_format true
+      #logstash_prefix ${record['bip-product-line']}-${record['bip-app']}
       request_timeout 45s
       # Reload on errors but not based on number of events
       reload_connections false

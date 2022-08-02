@@ -11,9 +11,9 @@ global: {}
 ## ref: https://hub.docker.com/r/bitnami/fluentd/tags/
 ##
 image:
-  registry: container-registry.prod8.bip.va.gov
+  registry: container-registry.dev8.bip.va.gov
   repository: ops/fluentd
-  tag: 1.14.6
+  tag: 1.15.0
   ## Specify a imagePullPolicy
   ## Defaults to 'Always' if image tag is 'latest', else set to 'IfNotPresent'
   ## ref: http://kubernetes.io/docs/user-guide/images/#pre-pulling-images
@@ -543,8 +543,9 @@ tls:
 elasticsearch:
   enabled: true
   scheme: https
-  host: vpc-alt8-testbed-3bgeznqixqsqk7jude5qkffccy.us-gov-west-1.es.amazonaws.com
+  host: vpc-alt-logging-ldgg2cr223fxalitq7wi4wjc5m.us-gov-west-1.es.amazonaws.com
   port: 443
+
 environments:
   - alt
   - dev
