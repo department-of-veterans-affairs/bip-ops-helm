@@ -121,7 +121,7 @@ data:
         path /opt/bitnami/fluentd/logs/buffers/journald-docker.pos
       </storage>
       read_from_head true
-      tag docker
+      tag platform.docker
     </source>
 
     <source>
@@ -134,7 +134,7 @@ data:
         path /opt/bitnami/fluentd/logs/buffers/journald-kubelet.pos
       </storage>
       read_from_head true
-      tag docker
+      tag platform.kubelet
     </source>
 
     # Break out bip-app and bip-env fields based on namespace
@@ -157,11 +157,16 @@ data:
     </filter>
 
     # Generate product-line field
-    # First checking for the existence of annotation
     <filter kubernetes.**>
       @type record_modifier
       <record>
         bip-product-line ${record.dig('kubernetes', 'namespace_labels', 'bip_va_gov/product-line') || 'orphan'}
+      </record>
+    </filter>
+    <filter platform.**>
+      @type record_modifier
+      <record>
+        bip-product-line ${tag}
       </record>
     </filter>
 
@@ -193,23 +198,23 @@ data:
     </filter>
 
     # Attempt to parse the log field as json
-    <filter *.kubernetes.**>
-      @type parser
-      key_name log
-      reserve_time
-      reserve_data
-      remove_key_name_field true
-      <parse>
-        @type multi_format
-        <pattern>
-          format json
-          types claimid:integer
-        </pattern>
-        <pattern>
-          format none
-        </pattern>
-      </parse>
-    </filter>
+    #<filter *.kubernetes.**>
+    #  @type parser
+    #  key_name log
+    #  reserve_time
+    #  reserve_data
+    #  remove_key_name_field true
+    #  <parse>
+    #    @type multi_format
+    #    <pattern>
+    #      format json
+    #      types claimid:integer
+    #    </pattern>
+    #    <pattern>
+    #      format none
+    #    </pattern>
+    #  </parse>
+    #</filter>
 
     ## Breakout nginx fields for indexing
     #<filter ingress.kubernetes.var.log.containers.**nginx**.log>
@@ -245,8 +250,15 @@ data:
       hash_id_key _hash
     </filter>
 
-    # Set the index dynamically based on k8s metadata
     <filter **>
+      @type record_modifier
+      <record>
+        _target_index tenant-${tag}-${Time.at(time).strftime('%F')}
+      </record>
+    </filter>
+
+    # Set the index dynamically based on k8s metadata
+    <filter *.kubernetes.**>
       @type record_modifier
       <record>
         _target_index tenant-${record['bip-product-line']}-${record['bip-app']}-${Time.at(time).strftime('%F')}
@@ -292,7 +304,7 @@ data:
     </match>
     {{- else }}
     ## Send the logs to opensearch
-    <match **.kubernetes.**>
+    <match **>
       @type copy
       {{- if .Values.opensearch.enabled }}
       <store>
@@ -305,6 +317,7 @@ data:
         target_index_key _target_index
         include_tag_key true
         include_timestamp true
+        # Errors are not descriptive enough without this
         log_os_400_reason true
         scheme {{ .Values.opensearch.scheme | default "http" }}
         host {{ .Values.opensearch.host }}
@@ -315,14 +328,11 @@ data:
         {{- if .Values.opensearch.password }}
         password {{ .Values.opensearch.password }}
         {{- end }}
-        #logstash_format true
-        #logstash_prefix ${record['bip-product-line']}-${record['bip-app']}
         request_timeout 45s
         # Reload on errors but not based on number of events
         reload_connections false
         reload_on_failure true
         reconnect_on_error true
-
         <buffer>
           @type file
           path /opt/bitnami/fluentd/logs/buffers/logs.buffer
@@ -346,7 +356,8 @@ data:
         @type s3
         s3_bucket {{ .Values.s3.bucket | required ".Values.s3.bucket is required." }}
         s3_region {{ .Values.s3.region | required ".Values.s3.region is required." }}
-        path ${bip-product-line}/%Y/%m/logs-
+        path ${bip-product-line}/%Y/%m/
+        time_slice_format %Y-%m-%d.%H%M
         <buffer>
           @type file
           path /var/log/fluentd-s3/s3
@@ -358,7 +369,6 @@ data:
           @type file
           path /var/log/fluentd-s3/s3/failed_records
         </secondary>
-        time_slice_format %Y-%m-%d.%H.%M
       </store>
       {{ end }}
     </match>
