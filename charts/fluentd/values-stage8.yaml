@@ -11,7 +11,7 @@ global: {}
 ## ref: https://hub.docker.com/r/bitnami/fluentd/tags/
 ##
 image:
-  registry: container-registry.dev8.bip.va.gov
+  registry: container-registry.stage8.bip.va.gov
   repository: ops/fluentd
   tag: 1.15.0
   ## Specify a imagePullPolicy
@@ -36,7 +36,7 @@ image:
 
 ## Cluster Domain
 ##
-clusterDomain: dev8
+clusterDomain: stage8
 
 ## Forwarder parameters
 ##
@@ -224,8 +224,7 @@ forwarder:
   ## Pod annotations
   ## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
   ##
-  podAnnotations:
-    iam.amazonaws.com/role: project-dev8-fluentd-bucket-role
+  podAnnotations: {}
 
   ## Extra labels to add to Pod
   podLabels: {}
@@ -541,10 +540,10 @@ tls:
   # existingSecret: name-of-existing-secret-to-certificates
 
 ## Custom parameters
-opensearch:
+elasticsearch:
   enabled: true
   scheme: https
-  host: vpc-logging-dev8-5quablmagtyhxjp57fu5odoaie.us-gov-west-1.es.amazonaws.com
+  host: vpc-logging-stage8-l6cqilzabgj2mrusfdcmyqw5na.us-gov-west-1.es.amazonaws.com
   port: 443
 
 environments:
@@ -568,8 +567,3 @@ environments:
   - testpatchtest
   - training
   - uat
-
-s3:
-  enabled: true
-  bucket: fluentd-dev
-  region: us-gov-west-1
