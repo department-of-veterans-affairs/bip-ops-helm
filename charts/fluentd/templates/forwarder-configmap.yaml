@@ -173,13 +173,6 @@ data:
     #  dictionary_path /opt/bitnami/fluentd/conf/product-lines.json
     #</filter>
 
-    # Rename variations to "message" field for consistency
-    <filter kubernetes.**>
-      @type rename_key
-      rename_rule1 ^msg$ message
-      #rename_rule2 ^MESSAGE$ message
-    </filter>
-
     # Tag the record based on the value of bip-app
     <match kubernetes.**>
       @type rewrite_tag_filter
@@ -238,6 +231,13 @@ data:
     #  </parse>
     #</filter>
 
+    # Rename variations to "message" field for consistency
+    <filter kubernetes.**>
+      @type rename_key
+      rename_rule1 ^msg$ message
+      #rename_rule2 ^MESSAGE$ message
+    </filter>
+
     # Generate a hash id for each record to prevent duplicates in ES.
     # see https://github.com/uken/fluent_plugin-elasticsearch#generate-hash-id
     <filter **>
@@ -291,52 +291,77 @@ data:
       @type null
     </match>
     {{- else }}
-    ## Send the logs to elasticsearch
-    {{- if .Values.elasticsearch.enabled }}
+    ## Send the logs to opensearch
     <match **.kubernetes.**>
-      @type opensearch
-      # Use generated hash for _id to prevent duplicates in ES
-      id_key _hash
-      # ES does not like keys with _, so remove from record
-      remove_keys _hash
-      # Use the generate index name
-      target_index_key _target_index
-      include_tag_key true
-      scheme {{ .Values.elasticsearch.scheme | default "http" }}
-      host {{ .Values.elasticsearch.host }}
-      port {{ .Values.elasticsearch.port }}
-      {{- if .Values.elasticsearch.user }}
-      user {{ .Values.elasticsearch.user }}
-      {{- end -}}
-      {{- if .Values.elasticsearch.password }}
-      password {{ .Values.elasticsearch.password }}
-      {{- end }}
-      #logstash_format true
-      #logstash_prefix ${record['bip-product-line']}-${record['bip-app']}
-      request_timeout 45s
-      # Reload on errors but not based on number of events
-      reload_connections false
-      reload_on_failure true
-      reconnect_on_error true
+      @type copy
+      {{- if .Values.opensearch.enabled }}
+      <store>
+        @type opensearch
+        # Use generated hash for _id to prevent duplicates in ES
+        id_key _hash
+        # ES does not like keys with _, so remove from record
+        remove_keys _hash
+        # Use the generate index name
+        target_index_key _target_index
+        include_tag_key true
+        include_timestamp true
+        log_os_400_reason true
+        scheme {{ .Values.opensearch.scheme | default "http" }}
+        host {{ .Values.opensearch.host }}
+        port {{ .Values.opensearch.port }}
+        {{- if .Values.opensearch.user }}
+        user {{ .Values.opensearch.user }}
+        {{- end -}}
+        {{- if .Values.opensearch.password }}
+        password {{ .Values.opensearch.password }}
+        {{- end }}
+        #logstash_format true
+        #logstash_prefix ${record['bip-product-line']}-${record['bip-app']}
+        request_timeout 45s
+        # Reload on errors but not based on number of events
+        reload_connections false
+        reload_on_failure true
+        reconnect_on_error true
 
-      <buffer>
-        @type file
-        path /opt/bitnami/fluentd/logs/buffers/logs.buffer
-        # Flush conf
-        flush_mode interval
-        flush_thread_count 8
-        flush_interval 30s
-        # Retry conf
-        retry_type exponential_backoff
-        retry_forever
-        retry_max_interval 30
-        # Chunk conf
-        total_limit_size 1024MB
-        chunk_limit_size 25MB
-        overflow_action block
-      </buffer>
+        <buffer>
+          @type file
+          path /opt/bitnami/fluentd/logs/buffers/logs.buffer
+          # Flush conf
+          flush_mode interval
+          flush_thread_count 8
+          flush_interval 30s
+          # Retry conf
+          retry_type exponential_backoff
+          retry_forever
+          retry_max_interval 30
+          # Chunk conf
+          total_limit_size 1024MB
+          chunk_limit_size 25MB
+          overflow_action block
+        </buffer>
+      </store>
+      {{- end -}}
+      {{- if .Values.s3.enabled }}
+      <store>
+        @type s3
+        s3_bucket {{ .Values.s3.bucket | required ".Values.s3.bucket is required." }}
+        s3_region {{ .Values.s3.region | required ".Values.s3.region is required." }}
+        path ${bip-product-line}/%Y/%m/logs-
+        <buffer>
+          @type file
+          path /var/log/fluentd-s3/s3
+          timekey 1800
+          timekey_wait 5m
+          chunk_limit_size 256m
+        </buffer>
+        <secondary>
+          @type file
+          path /var/log/fluentd-s3/s3/failed_records
+        </secondary>
+        time_slice_format %Y-%m-%d.%H.%M
+      </store>
+      {{ end }}
     </match>
-    {{- end -}}
     {{- end }}
 
   product-lines.json: | {{ .Files.Get "files/product-lines.json" | nindent 4 }}
