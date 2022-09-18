@@ -93,6 +93,7 @@ data:
       format json
       time_key time
       time_format %Y-%m-%d%T%H:%M:%S.%N%z
+      keep_time_key true
       tag platform.audit
     </source>
 
@@ -312,7 +313,7 @@ data:
         # Use generated hash for _id to prevent duplicates in ES
         id_key _hash
         # ES does not like keys with _, so remove from record
-        remove_keys _hash
+        remove_keys _hash, time
         # Use the generate index name
         target_index_key _target_index
         include_tag_key true
@@ -356,19 +357,22 @@ data:
         @type s3
         s3_bucket {{ .Values.s3.bucket | required ".Values.s3.bucket is required." }}
         s3_region {{ .Values.s3.region | required ".Values.s3.region is required." }}
-        path ${bip-product-line}/%Y/%m/
+        path ${$.bip-product-line}/%Y/%m/
+        #path %Y/%m/
+        #s3_object_key_format %{path}%{bip-product-line}_%{time_slice}_%{index}.%{file_extension}
         time_slice_format %Y-%m-%d.%H%M
-        <buffer>
+        <buffer time,$.bip-product-line>
           @type file
-          path /var/log/fluentd-s3/s3
+          #path /var/log/fluentd-s3/s3
+          path /opt/bitnami/fluentd/logs/buffers/s3.buffer
           timekey 1800
           timekey_wait 5m
           chunk_limit_size 256m
         </buffer>
-        <secondary>
-          @type file
-          path /var/log/fluentd-s3/s3/failed_records
-        </secondary>
+        #<secondary>
+        #  @type file
+        #  path /var/log/fluentd-s3/s3/failed_records
+        #</secondary>
       </store>
       {{ end }}
     </match>
