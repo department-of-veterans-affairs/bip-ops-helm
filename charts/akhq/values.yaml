@@ -196,7 +196,7 @@ secrets:
         schema-registry:
           url: "https://schemaregistry.confluentv2.svc.alt8:8081"
           basic-auth-username: "sr"
-          basic-auth-password: "3dEyRqrKpVf2wEuV"
+          basic-auth-password: "xxxxxxxxxxxx"
           properties:
             schema.registry.ssl.truststore.location: /mnt/sr-sslcerts/truststore.p12
             schema.registry.ssl.truststore.password: xxxxxxxxxxxx
