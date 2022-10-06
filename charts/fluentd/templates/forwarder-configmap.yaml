@@ -91,8 +91,8 @@ data:
       path /var/log/kubernetes/audit/kube-apiserver-audit.log
       pos_file /opt/bitnami/fluentd/logs/buffers/kube-apiserver-audit.pos
       format json
-      time_key time
-      time_format %Y-%m-%d%T%H:%M:%S.%N%z
+      time_key requestReceivedTimestamp
+      time_format %Y-%m-%dT%H:%M:%S.%NZ
       keep_time_key true
       tag platform.audit
     </source>
@@ -108,6 +108,7 @@ data:
         responseObject ${record["responseObject"].nil? ? "none": record["responseObject"].to_json}
         requestObject ${record["requestObject"].nil? ? "none": record["requestObject"].to_json}
         origin kubernetes-api-audit
+        time ${record["requestReceivedTimestamp"]}
       </record>
     </filter>
 
