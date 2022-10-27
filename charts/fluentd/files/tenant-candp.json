@@ -1,0 +1,37 @@
+{
+  "index_patterns": [
+    "ns-bffs-*",
+    "ns-bss-*",
+    "ns-cap-*",
+    "ns-cfapi-*",
+    "ns-cpui-*",
+    "ns-data-synchronization-*",
+    "ns-dbq-cmt-*",
+    "ns-dmdt-*",
+    "ns-docgen-*",
+    "ns-exam-destination-*",
+    "ns-exam-mgmt-*",
+    "ns-fti-capture-*",
+    "ns-fti-file-repo-*",
+    "ns-fti-soap-*",
+    "ns-ibs-*",
+    "ns-pacman-*",
+    "ns-pension-automation-*",
+    "ns-rrc-*",
+    "ns-vasrd-*",
+    "ns-vbms-*",
+    "ns-vbmsc-*",
+    "ns-vefs-*",
+    "ns-work-queue-*",
+    "ns-ingress-*"
+  ],
+  "template": {
+    "aliases": {
+      "tenant-candp": {}
+    },
+    "settings": {
+      "number_of_shards": 2,
+      "number_of_replicas": 1
+    }
+  }
+}

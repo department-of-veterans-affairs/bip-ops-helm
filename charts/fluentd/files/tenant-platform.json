@@ -1,0 +1,32 @@
+{
+  "index_patterns": [
+    "ns-api-gateway-*",
+    "ns-appdynamics-*",
+    "ns-auth-*",
+    "ns-bms-*",
+    "ns-cicd-*",
+    "ns-confluentv2-*",
+    "ns-default-*",
+    "ns-filebeat-*",
+    "ns-ingress-*",
+    "ns-kube-*",
+    "ns-kubecost-*",
+    "ns-logging-*",
+    "ns-monitoring-*",
+    "ns-operations-*",
+    "ns-ops-*",
+    "ns-storage-*",
+    "ns-twistlock-*",
+    "ns-vault-*",
+    "ns-velero-*"
+  ],
+  "template": {
+    "aliases": {
+      "tenant-candp": {}
+    },
+    "settings": {
+      "number_of_shards": 2,
+      "number_of_replicas": 1
+    }
+  }
+}

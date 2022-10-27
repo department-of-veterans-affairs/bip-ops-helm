@@ -1,0 +1,28 @@
+{
+  "index_patterns": [
+    "ns-archetypetest-*",
+    "ns-bah-*",
+    "ns-benefits-*",
+    "ns-bie-*",
+    "ns-bih-*",
+    "ns-blue-*",
+    "ns-bpds-*",
+    "ns-bteam-*",
+    "ns-claims-*",
+    "ns-demo-*",
+    "ns-developer-portal-*",
+    "ns-fiduciary-service-*",
+    "ns-intro-to-platform-*",
+    "ns-inventory-builder-*",
+    "ns-ingress-*"
+  ],
+  "template": {
+    "aliases": {
+      "tenant-bia": {}
+    },
+    "settings": {
+      "number_of_shards": 2,
+      "number_of_replicas": 1
+    }
+  }
+}
