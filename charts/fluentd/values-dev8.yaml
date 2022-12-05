@@ -507,7 +507,7 @@ rbac: {}
 ## Prometheus Exporter / Metrics
 ##
 metrics:
-  enabled: false
+  enabled: true
   ## Prometheus Exporter service parameters
   ##
   service:
@@ -531,7 +531,7 @@ metrics:
   ## Prometheus Operator ServiceMonitor configuration
   ##
   serviceMonitor:
-    enabled: false
+    enabled: true
     ## Namespace in which Prometheus is running
     ##
     # namespace: monitoring
@@ -561,35 +561,52 @@ tls:
   # existingSecret: name-of-existing-secret-to-certificates
 
 ## Custom parameters
+aws:
+  region: us-gov-west-1
+
+iam:
+  #role_arn:
+
 opensearch:
   enabled: true
-  scheme: https
-  host: vpc-logging-dev8-5quablmagtyhxjp57fu5odoaie.us-gov-west-1.es.amazonaws.com
-  port: 443
+  url: https://vpc-logging-dev8-5quablmagtyhxjp57fu5odoaie.us-gov-west-1.es.amazonaws.com
+  assume_role:
+    enabled: false
 
 environments:
   - cola
+  - cola2
   - demo
   - dev
+  - dev2
   - int
+  - int2
   - ivv
+  - ivv2
   - pat
+  - pat2
   - pdt
+  - pdt2
   - perf
+  - perf2
   - preprod
+  - preprod2
   - prod
+  - prod2
   - prodpatchdev
   - prodpatchprod
   - prodpatchstage
   - prodpatchtest
   - prodtest
+  - prodtest2
   - test
+  - test2
   - testpatchdev
   - testpatchtest
   - training
   - uat
+  - uat2
 
 s3:
-  enabled: true
+  enabled: false
   bucket: fluentd-dev
-  region: us-gov-west-1

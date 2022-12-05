@@ -561,11 +561,18 @@ tls:
   # existingSecret: name-of-existing-secret-to-certificates
 
 ## Custom parameters
+aws:
+  region: us-gov-west-1
+
+iam:
+  #role_arn:
+
 opensearch:
   enabled: true
-  scheme: https
-  host: vpc-logging-stage8-l6cqilzabgj2mrusfdcmyqw5na.us-gov-west-1.es.amazonaws.com
-  port: 443
+  url: https://vpc-logging-stage8-l6cqilzabgj2mrusfdcmyqw5na.us-gov-west-1.es.amazonaws.com
+  assume_role:
+    enabled: false
+    arn: arn:aws-us-gov:iam::621261082401:role/project/project-stage8-fluentd-bucket-role
 
 environments:
   - cola
@@ -583,13 +590,14 @@ environments:
   - prodpatchstage
   - prodpatchtest
   - prodtest
+  - sqa
   - test
   - testpatchdev
   - testpatchtest
   - training
   - uat
+  - uat2
 
 s3:
   enabled: true
   bucket: fluentd-stage
-  region: us-gov-west-1
