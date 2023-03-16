@@ -1,0 +1,15 @@
+{
+  "index_patterns": [
+    "ns-empwr-*",
+    "ns-ingress-*"
+  ],
+  "template": {
+    "aliases": {
+      "tenant-evre": {}
+    },
+    "settings": {
+      "number_of_shards": 2,
+      "number_of_replicas": 1
+    }
+  }
+}
