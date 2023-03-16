@@ -597,5 +597,4 @@ environments:
   - uat
 
 s3:
-  enabled: true
-  bucket: fluentd-prod
+  enabled: false

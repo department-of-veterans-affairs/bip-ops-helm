@@ -569,7 +569,7 @@ iam:
 
 opensearch:
   enabled: true
-  url: https://vpc-logging-dev8-5quablmagtyhxjp57fu5odoaie.us-gov-west-1.es.amazonaws.com
+  url: https://vpc-logging-dev-5rinf542cuxlpn3znitm2rtesm.us-gov-west-1.es.amazonaws.com
   assume_role:
     enabled: false
 
@@ -610,3 +610,6 @@ environments:
 s3:
   enabled: false
   bucket: fluentd-dev
+
+fields:
+  origin: legacy
