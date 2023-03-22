@@ -507,7 +507,7 @@ rbac: {}
 ## Prometheus Exporter / Metrics
 ##
 metrics:
-  enabled: false
+  enabled: true
   ## Prometheus Exporter service parameters
   ##
   service:
@@ -531,7 +531,7 @@ metrics:
   ## Prometheus Operator ServiceMonitor configuration
   ##
   serviceMonitor:
-    enabled: false
+    enabled: true
     ## Namespace in which Prometheus is running
     ##
     # namespace: monitoring
