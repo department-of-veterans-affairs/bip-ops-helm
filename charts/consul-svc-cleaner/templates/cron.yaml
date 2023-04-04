@@ -5,6 +5,8 @@ metadata:
 spec:
   jobTemplate:
     metadata:
+      annotations:
+        bms.bip.va.gov/ignore: "true"
       labels:
         app: consul-svc-cleaner
     spec:
