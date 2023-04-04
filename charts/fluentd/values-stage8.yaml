@@ -104,9 +104,9 @@ forwarder:
     # - name: tcp
     #   containerPort: 24224
     #   protocol: TCP
-    - name: http
-      containerPort: 9880
-      protocol: TCP
+    #- name: http
+    #  containerPort: 9880
+    #  protocol: TCP
 
   ## Service parameters
   ##
@@ -162,14 +162,14 @@ forwarder:
   ##
   livenessProbe:
     enabled: true
-    initialDelaySeconds: 90
+    initialDelaySeconds: 30
     periodSeconds: 30
     timeoutSeconds: 5
     failureThreshold: 3
     successThreshold: 1
   readinessProbe:
-    enabled: true
-    initialDelaySeconds: 5
+    enabled: false
+    initialDelaySeconds: 90
     periodSeconds: 10
     timeoutSeconds: 5
     failureThreshold: 6
@@ -507,7 +507,7 @@ rbac: {}
 ## Prometheus Exporter / Metrics
 ##
 metrics:
-  enabled: false
+  enabled: true
   ## Prometheus Exporter service parameters
   ##
   service:
@@ -531,7 +531,7 @@ metrics:
   ## Prometheus Operator ServiceMonitor configuration
   ##
   serviceMonitor:
-    enabled: false
+    enabled: true
     ## Namespace in which Prometheus is running
     ##
     # namespace: monitoring
@@ -569,7 +569,7 @@ iam:
 
 opensearch:
   enabled: true
-  url: https://vpc-logging-stage8-l6cqilzabgj2mrusfdcmyqw5na.us-gov-west-1.es.amazonaws.com
+  url: https://vpc-logging-stage-op2an4kbncpvsdpifoazwccmam.us-gov-west-1.es.amazonaws.com
   assume_role:
     enabled: false
     arn: arn:aws-us-gov:iam::621261082401:role/project/project-stage8-fluentd-bucket-role
@@ -599,5 +599,8 @@ environments:
   - uat2
 
 s3:
-  enabled: true
+  enabled: false
   bucket: fluentd-stage
+
+fields:
+  origin: legacy

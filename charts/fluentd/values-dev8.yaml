@@ -162,14 +162,14 @@ forwarder:
   ##
   livenessProbe:
     enabled: true
-    initialDelaySeconds: 90
+    initialDelaySeconds: 30
     periodSeconds: 30
     timeoutSeconds: 5
     failureThreshold: 3
     successThreshold: 1
   readinessProbe:
-    enabled: true
-    initialDelaySeconds: 5
+    enabled: false
+    initialDelaySeconds: 90
     periodSeconds: 10
     timeoutSeconds: 5
     failureThreshold: 6
