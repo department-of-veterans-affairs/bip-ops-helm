@@ -80,17 +80,8 @@ spec:
                 - /bin/sh
                 - -c
                 - |
-                  LIVENESS_THRESHOLD_SECONDS=${LIVENESS_THRESHOLD_SECONDS:-300}
-                  STUCK_THRESHOLD_SECONDS=${LIVENESS_THRESHOLD_SECONDS:-900}
-                  if [ ! -e /opt/bitnami/fluentd/logs/buffers ]; then
-                    exit 1
-                  fi
-                  touch -d "${STUCK_THRESHOLD_SECONDS} seconds ago" /tmp/marker-stuck
-                  if [[ -z "$(find /opt/bitnami/fluentd/logs/buffers -type f -newer /tmp/marker-stuck -print -quit)" ]]; then
-                    exit 1
-                  fi
-                  touch -d "${LIVENESS_THRESHOLD_SECONDS} seconds ago" /tmp/marker-liveness
-                  if [[ -z "$(find /opt/bitnami/fluentd/logs/buffers -type f -newer /tmp/marker-liveness -print -quit)" ]]; then
+                  LAST_MODIFIED_CNT=$(find /emptydir -type f -mmin -60 | wc -l)
+                  if [[ -z $LAST_MODIFIED_CNT ]]; then
                     exit 1
                   fi
             initialDelaySeconds: {{ .Values.forwarder.livenessProbe.initialDelaySeconds }}
@@ -101,18 +92,9 @@ spec:
           {{- end }}
           {{- if .Values.forwarder.readinessProbe.enabled }}
           readinessProbe:
-            exec:
-              command:
-                - /bin/sh
-                - -c
-                - |
-                  LIVENESS_THRESHOLD_SECONDS=${LIVENESS_THRESHOLD_SECONDS:-300}
-                  if [ ! -e /opt/bitnami/fluentd/logs/buffers ]; then
-                    exit 1
-                  fi
-                  if [[ -z "$(find /opt/bitnami/fluentd/logs/buffers -type f -mmin -${LIVENESS_THRESHOLD_SECONDS} -print -quit)" ]]; then
-                    exit 1
-                  fi
+            httpGet:
+              path: /fluentd.healthcheck?json=%7B%22ping%22%3A+%22pong%22%7D
+              port: http
             initialDelaySeconds: {{ .Values.forwarder.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.forwarder.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.forwarder.readinessProbe.timeoutSeconds }}
@@ -128,12 +110,12 @@ spec:
           volumeMounts:
             - name: fluentd-config
               mountPath: /opt/bitnami/fluentd/conf
-            - name: buffer
-              mountPath: /opt/bitnami/fluentd/logs/buffers
             {{- if .Values.tls.enabled }}
             - name: certs
               mountPath: /opt/bitnami/fluentd/certs
             {{- end }}
+            - name: local-store
+              mountPath: /emptydir
             - name: varlog
               mountPath: /var/log
             - name: dockercontainers
@@ -159,7 +141,7 @@ spec:
         - name: fluentd-config
           configMap:
             name: {{ template "fluentd.forwarder.configMap" . }}
-        - name: buffer
+        - name: local-store
           emptyDir: {}
         - name: varlog
           hostPath:
